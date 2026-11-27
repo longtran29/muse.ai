@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>muse2api · Playground</title>
+<style>
+  :root {
+    --bg: #0e1014; --panel: #161a21; --panel2: #1d222b; --line: #2a3140;
+    --text: #e6e9ef; --muted: #8b95a7; --accent: #6f8cff; --accent2: #8f6fff;
+    --ok: #3ecf8e; --err: #ff6b6b; --warn: #ffb86b; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  header {
+    display: flex; align-items: center; gap: 16px;
+    padding: 12px 20px; border-bottom: 1px solid var(--line);
+    background: var(--panel); position: sticky; top: 0; z-index: 20;
+  }
+  header h1 { font-size: 15px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header h1 span { color: var(--muted); font-weight: 400; }
+  header nav { display: flex; gap: 14px; font-size: 13px; margin-left: auto; }
+
+  .keybar {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 20px; border-bottom: 1px solid var(--line); background: var(--panel2);
+    font-size: 13px; flex-wrap: wrap;
+  }
+  .keybar input {
+    flex: 1 1 320px; min-width: 220px; font-family: ui-monospace, monospace; font-size: 12px;
+  }
+  .status { font-size: 12px; color: var(--muted); }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+
+  main {
+    display: grid; grid-template-columns: minmax(340px, 420px) 1fr;
+    gap: 18px; padding: 18px 20px 40px; align-items: start;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line);
+    border-radius: var(--radius); padding: 16px;
+  }
+  .card h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .8px;
+    color: var(--muted); margin: 0 0 12px; font-weight: 600;
+  }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin: 12px 0 5px; }
+  label:first-of-type { margin-top: 0; }
+  textarea, input, select {
+    width: 100%; background: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: 8px;
+    padding: 9px 10px; font: inherit; outline: none;
+  }
+  textarea { resize: vertical; min-height: 92px; }
+  textarea:focus, input:focus, select:focus { border-color: var(--accent); }
+
+  .modes { display: flex; gap: 6px; background: var(--bg); padding: 4px;
+           border-radius: 10px; border: 1px solid var(--line); }
+  .modes button {
+    flex: 1; padding: 8px; border: 0; border-radius: 7px; background: transparent;
+    color: var(--muted); font: inherit; font-weight: 500; cursor: pointer;
+  }
+  .modes button.active { background: var(--accent); color: #fff; }
+
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row > div { min-width: 0; }
+
+  .btn {
+    width: 100%; padding: 11px; border: 0; border-radius: 9px; cursor: pointer;
+    font: inherit; font-weight: 600; color: #fff;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    margin-top: 16px;
+  }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn.ghost { background: var(--panel2); border: 1px solid var(--line); color: var(--text); }
+
+  .drop {
+    border: 1px dashed var(--line); border-radius: 9px; padding: 12px;
+    text-align: center; color: var(--muted); font-size: 12px; cursor: pointer;
+  }
+  .drop:hover { border-color: var(--accent); color: var(--text); }
+  .thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .thumb { position: relative; width: 64px; height: 64px; border-radius: 8px;
+           overflow: hidden; border: 1px solid var(--line); }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .thumb button {
+    position: absolute; top: 2px; right: 2px; width: 18px; height: 18px;
+    border-radius: 50%; border: 0; background: rgba(0,0,0,.7); color: #fff;
+    cursor: pointer; font-size: 11px; line-height: 1; padding: 0;
+  }
+
+  .bar { height: 6px; background: var(--bg); border-radius: 99px; overflow: hidden; margin: 14px 0 8px; }
+  .bar > div { height: 100%; width: 0; background: linear-gradient(90deg, var(--accent), var(--accent2));
+               transition: width .4s ease; }
+  .log { font-size: 12px; color: var(--muted); min-height: 18px; }
+  .log.err { color: var(--err); }
+
+  .result { min-height: 320px; display: flex; align-items: center; justify-content: center;
+            background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  .result img, .result video { max-width: 100%; max-height: 68vh; display: block; }
+  .empty { color: var(--muted); font-size: 13px; text-align: center; padding: 30px; }
+  .meta { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .meta a { font-weight: 600; }
+
+  .hist { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; margin-top: 4px; }
+  .hist .item { background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+                overflow: hidden; cursor: pointer; }
+  .hist .item img, .hist .item video { width: 100%; height: 90px; object-fit: cover; display: block; }
+  .hist .item .cap { font-size: 11px; color: var(--muted); padding: 6px 7px;
+                     white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hist .item:hover { border-color: var(--accent); }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 6px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>muse2api <span>· Playground</span></h1>
+  <nav>
+    <a href="/dashboard">Dashboard</a>
+    <a href="/docs">API docs</a>
+    <a href="/admin/status" id="statusLink">Status</a>
+  </nav>
+</header>
+
+<div class="keybar">
+  <span>API key</span>
+  <input id="apiKey" type="password" placeholder="m2a-..." autocomplete="off" spellcheck="false" />
+  <button class="btn ghost" id="saveKey" style="width:auto;margin:0;padding:8px 14px">Lưu</button>
+  <span class="status" id="keyStatus"></span>
+</div>
+
+<main>
+  <section class="card">
+    <h2>Tạo nội dung</h2>
+
+    <div class="modes" id="modes">
+      <button data-mode="image" class="active">Ảnh</button>
+      <button data-mode="video">Video</button>
+    </div>
+
+    <label for="prompt">Prompt</label>
+    <textarea id="prompt" placeholder="A red ceramic coffee mug on a wooden table, soft window light, photorealistic"></textarea>
+
+    <div class="row">
+      <div>
+        <label for="ratio">Tỷ lệ</label>
+        <select id="ratio">
+          <option value="1:1">1:1 vuông</option>
+          <option value="16:9" selected>16:9 ngang</option>
+          <option value="9:16">9:16 dọc</option>
+          <option value="4:3">4:3</option>
+          <option value="3:4">3:4</option>
+          <option value="3:2">3:2</option>
+          <option value="2:3">2:3</option>
+        </select>
+      </div>
+      <div id="countWrap">
+        <label for="count">Số lượng</label>
+        <select id="count">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+        </select>
+      </div>
+      <div id="durWrap" style="display:none">
+        <label for="duration">Độ dài</label>
+        <select id="duration">
+          <option value="4">4 giây</option>
+          <option value="5" selected>5 giây</option>
+          <option value="8">8 giây</option>
+          <option value="10">10 giây</option>
+        </select>
+      </div>
+    </div>
+
+    <label id="refLabel">Ảnh tham chiếu (tối đa 4)</label>
+    <div class="drop" id="drop">Bấm để chọn ảnh, hoặc kéo thả vào đây</div>
+    <input id="files" type="file" accept="image/*" multiple hidden />
+    <div class="thumbs" id="thumbs"></div>
+    <div class="hint" id="refHint">Giữ nhân vật / sản phẩm / bố cục giống ảnh mẫu.</div>
+
+    <button class="btn" id="go">Tạo</button>
+
+    <div class="bar"><div id="fill"></div></div>
+    <div class="log" id="log">Sẵn sàng.</div>
+  </section>
+
+  <section>
+    <div class="card">
+      <h2>Kết quả</h2>
+      <div class="result" id="result">
+        <div class="empty">Chưa có gì. Nhập prompt rồi bấm <b>Tạo</b>.</div>
+      </div>
+      <div class="meta" id="meta"></div>
+    </div>
+
+    <div class="card" style="margin-top:18px">
+      <h2>Lịch sử (phiên này)</h2>
+      <div class="hist" id="hist"><div class="empty" style="grid-column:1/-1">Trống.</div></div>
+    </div>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const KEY_STORE = "muse2api.playground.key";
+  const state = { mode: "image", refs: [], busy: false, history: [], polling: null };
+
+  /* ---------------- api key ---------------- */
+  function key() { return $("apiKey").value.trim(); }
+  function setKeyStatus(text, cls) {
+    const el = $("keyStatus");
+    el.textContent = text;
+    el.className = "status" + (cls ? " " + cls : "");
+  }
+  async function checkKey() {
+    const k = key();
+    if (!k) { setKeyStatus("chưa nhập key", "err"); return; }
+    localStorage.setItem(KEY_STORE, k);
+    setKeyStatus("đang kiểm tra…");
+    try {
+      const r = await fetch("/admin/status", { headers: { Authorization: "Bearer " + k } });
+      if (r.ok) { setKeyStatus("key hợp lệ", "ok"); }
+      else { setKeyStatus("key sai (" + r.status + ")", "err"); }
+    } catch (e) { setKeyStatus("không gọi được gateway", "err"); }
+  }
+  $("saveKey").addEventListener("click", checkKey);
+  $("apiKey").addEventListener("change", checkKey);
+
+  /* ---------------- mode switch ---------------- */
+  function applyMode() {
+    const isVideo = state.mode === "video";
+    $("durWrap").style.display = isVideo ? "" : "none";
+    $("countWrap").style.display = isVideo ? "none" : "";
+    $("refLabel").textContent = isVideo ? "Ảnh khung đầu (khung hình đầu tiên)" : "Ảnh tham chiếu (tối đa 4)";
+    $("refHint").textContent = isVideo
+      ? "Video bắt đầu đúng từ ảnh này. Chỉ nhận 1 ảnh."
+      : "Giữ nhân vật / sản phẩm / bố cục giống ảnh mẫu. Tối đa 4 ảnh.";
+    if (isVideo && state.refs.length > 1) { state.refs = state.refs.slice(0, 1); renderThumbs(); }
+    document.querySelectorAll("#modes button").forEach((b) => {
+      b.classList.toggle("active", b.dataset.mode === state.mode);
+    });
+  }
+  $("modes").addEventListener("click", (e) => {
+    const b = e.target.closest("button[data-mode]");
+    if (!b || state.busy) return;
+    state.mode = b.dataset.mode;
+    applyMode();
+  });
+
+  /* ---------------- reference images ---------------- */
+  function renderThumbs() {
+    const box = $("thumbs");
+    box.innerHTML = "";
+    state.refs.forEach((r, i) => {
+      const d = document.createElement("div");
+      d.className = "thumb";
+      const img = document.createElement("img");
+      img.src = r.dataUrl;
+      const x = document.createElement("button");
+      x.textContent = "×";
+      x.title = "Bỏ ảnh";
+      x.addEventListener("click", () => { state.refs.splice(i, 1); renderThumbs(); });
+      d.append(img, x);
+      box.appendChild(d);
+    });
+    const max = state.mode === "video" ? 1 : 4;
+    $("drop").textContent = state.refs.length >= max
+      ? "Đã đủ " + max + " ảnh (bấm để thay)"
+      : "Bấm để chọn ảnh, hoặc kéo thả vào đây";
+  }
+  function addFiles(fileList) {
+    const max = state.mode === "video" ? 1 : 4;
+    const files = Array.from(fileList).filter((f) => f.type.startsWith("image/"));
+    if (!files.length) return;
+    let pending = files.length;
+    files.forEach((f) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (state.refs.length < max) state.refs.push({ dataUrl: reader.result, name: f.name });
+        if (--pending === 0) { if (state.refs.length > max) state.refs = state.refs.slice(0, max); renderThumbs(); }
+      };
+      reader.readAsDataURL(f);
+    });
+  }
+  $("drop").addEventListener("click", () => $("files").click());
+  $("files").addEventListener("change", (e) => { addFiles(e.target.files); e.target.value = ""; });
+  ["dragenter", "dragover"].forEach((ev) => $("drop").addEventListener(ev, (e) => {
+    e.preventDefault(); $("drop").style.borderColor = "var(--accent)";
+  }));
+  ["dragleave", "drop"].forEach((ev) => $("drop").addEventListener(ev, (e) => {
+    e.preventDefault(); $("drop").style.borderColor = "";
+  }));
+  $("drop").addEventListener("drop", (e) => {
+    if (e.dataTransfer && e.dataTransfer.files) addFiles(e.dataTransfer.files);
+  });
+
+  /* ---------------- ui helpers ---------------- */
+  function log(text, isErr) {
+    const el = $("log");
+    el.textContent = text;
+    el.className = "log" + (isErr ? " err" : "");
+  }
+  function progress(pct) { $("fill").style.width = Math.max(0, Math.min(100, pct)) + "%"; }
+  function setBusy(on) {
+    state.busy = on;
+    $("go").disabled = on;
+    $("go").textContent = on ? "Đang tạo…" : "Tạo";
+  }
+  function showError(msg) { progress(0); log(msg, true); }
+
+  function showResult(item) {
+    const box = $("result");
+    box.innerHTML = "";
+    let el;
+    if (item.kind === "video") {
+      el = document.createElement("video");
+      el.src = item.url; el.controls = true; el.autoplay = true; el.loop = true; el.muted = true;
+      el.playsInline = true;
+    } else {
+      el = document.createElement("img");
+      el.src = item.url; el.alt = item.prompt || "kết quả";
+    }
+    box.appendChild(el);
+    const meta = $("meta");
+    meta.innerHTML = "";
+    const link = document.createElement("a");
+    link.href = item.url; link.textContent = "Tải về"; link.download = "";
+    link.target = "_blank";
+    const p = document.createElement("span");
+    p.textContent = (item.kind === "video" ? "Video" : "Ảnh") + " · " + (item.prompt || "");
+    meta.append(link, p);
+    state.history.unshift(item);
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const box = $("hist");
+    if (!state.history.length) {
+      box.innerHTML = '<div class="empty" style="grid-column:1/-1">Trống.</div>';
+      return;
+    }
+    box.innerHTML = "";
+    state.history.forEach((item) => {
+      const d = document.createElement("div");
+      d.className = "item";
+      const media = document.createElement(item.kind === "video" ? "video" : "img");
+      media.src = item.url;
+      if (item.kind === "video") { media.muted = true; media.playsInline = true; media.preload = "metadata"; }
+      const cap = document.createElement("div");
+      cap.className = "cap";
+      cap.textContent = item.prompt || "(không có prompt)";
+      d.append(media, cap);
+      d.addEventListener("click", () => showResult(item));
+      box.appendChild(d);
+    });
+  }
+
+  /* ---------------- submit + poll ---------------- */
+  function authHeaders() {
+    return { "Content-Type": "application/json", Authorization: "Bearer " + key() };
+  }
+
+  async function pollImage(taskId) {
+    const t0 = Date.now();
+    while (true) {
+      await new Promise((r) => setTimeout(r, 3000));
+      const r = await fetch("/v1/images/generations/" + taskId, { headers: authHeaders() });
+      const t = await r.json();
+      if (!r.ok) throw new Error(t.error && t.error.message || ("HTTP " + r.status));
+      progress(Math.max(5, t.progress || 0));
+      log("Đang tạo ảnh… " + Math.round((Date.now() - t0) / 1000) + "s");
+      if (t.status === "succeeded") return t;
+      if (t.status === "failed") throw new Error(t.error || "tạo ảnh thất bại");
+    }
+  }
+
+  async function pollVideo(taskId) {
+    const t0 = Date.now();
+    while (true) {
+      await new Promise((r) => setTimeout(r, 4000));
+      const r = await fetch("/v1/videos/" + taskId, { headers: authHeaders() });
+      const t = await r.json();
+      if (!r.ok) throw new Error(t.error && t.error.message || ("HTTP " + r.status));
+      progress(Math.max(3, t.progress || 0));
+      log("Đang render video… " + Math.round((Date.now() - t0) / 1000) + "s (có thể 2–10 phút)");
+      if (t.status === "succeeded") return t;
+      if (t.status === "failed") throw new Error(t.error || "tạo video thất bại");
+    }
+  }
+
+  $("go").addEventListener("click", async () => {
+    if (state.busy) return;
+    const prompt = $("prompt").value.trim();
+    if (!key()) { showError("Nhập API key ở trên trước."); return; }
+    if (!prompt) { showError("Nhập prompt trước."); return; }
+
+    setBusy(true);
+    progress(2);
+    log("Đang gửi yêu cầu…");
+
+    try {
+      if (state.mode === "image") {
+        const body = {
+          prompt,
+          size: $("ratio").value,
+          n: Number($("count").value),
+          response_format: "url",
+          async: true,
+        };
+        if (state.refs.length) body.image = state.refs.map((r) => r.dataUrl);
+        const r = await fetch("/v1/images/generations", {
+          method: "POST", headers: authHeaders(), body: JSON.stringify(body),
+        });
+        const t = await r.json();
+        if (!r.ok) throw new Error(t.error && t.error.message || ("HTTP " + r.status));
+        log("Task " + t.id + " đã xếp hàng…");
+        const done = await pollImage(t.id);
+        progress(100);
+        const items = ((done.result || {}).data || []).map((d) => ({
+          kind: "image", url: d.url || ("data:image/png;base64," + (d.b64_json || "")), prompt,
+        }));
+        if (!items.length) throw new Error("muse.ai không trả về ảnh nào");
+        showResult(items[0]);
+        items.slice(1).forEach((it) => { state.history.unshift(it); });
+        if (items.length > 1) renderHistory();
+        log("Xong · " + items.length + " ảnh.");
+      } else {
+        const body = { prompt, size: $("ratio").value, duration: Number($("duration").value) };
+        if (state.refs.length) body.image = state.refs[0].dataUrl;
+        const r = await fetch("/v1/videos", {
+          method: "POST", headers: authHeaders(), body: JSON.stringify(body),
+        });
+        const t = await r.json();
+        if (!r.ok) throw new Error(t.error && t.error.message || ("HTTP " + r.status));
+        log("Task " + t.id + " đã xếp hàng…");
+        const done = await pollVideo(t.id);
+        progress(100);
+        const url = (done.result || {}).url;
+        if (!url) throw new Error("muse.ai không trả về video nào");
+        showResult({ kind: "video", url, prompt });
+        log("Xong · video đã sẵn sàng.");
+      }
+    } catch (e) {
+      showError("Lỗi: " + (e && e.message ? e.message : e));
+    } finally {
+      setBusy(false);
+    }
+  });
+
+  /* ---------------- boot ---------------- */
+  const saved = localStorage.getItem(KEY_STORE);
+  if (saved) { $("apiKey").value = saved; checkKey(); }
+  else { setKeyStatus("chưa nhập key", "err"); }
+  applyMode();
+  renderThumbs();
+})();
+</script>
+</body>
+</html>
